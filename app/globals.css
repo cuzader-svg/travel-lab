@@ -63,3 +63,39 @@
     @apply bg-background text-foreground font-sans;
   }
 }
+
+@layer utilities {
+  .tilt-card {
+    transform-style: preserve-3d;
+    will-change: transform;
+    transition: transform 0.18s ease-out;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-18px) rotate(8deg);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float-desk {
+  0%,
+  100% {
+    transform: rotateX(12deg) rotateY(-8deg) translateY(0);
+  }
+  50% {
+    transform: rotateX(12deg) rotateY(-8deg) translateY(-16px);
+  }
+}
+
+.animate-float-desk {
+  animation: float-desk 7s ease-in-out infinite;
+}
