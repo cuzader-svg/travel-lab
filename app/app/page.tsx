@@ -1,8 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { getSession } from '@/lib/auth'
 import {
   BadgeIndianRupee,
   Bed,
@@ -1135,9 +1133,7 @@ function Workspace({
 type Stage = 'hero' | 'loading' | 'workspace'
 
 export default function Page() {
-  const router = useRouter()
-  const [checking, setChecking] = useState(true)
-  const [stage, setStage] = useState<Stage>('workspace')
+  const [stage, setStage] = useState<Stage>('hero')
   const [input, setInput] = useState(
     '6 days in Thailand, 50,500 INR budget, focus on Thai night life & street food, Beach, moderate pace',
   )
@@ -1150,14 +1146,6 @@ export default function Page() {
   useEffect(() => {
     return () => timersRef.current.forEach(clearTimeout)
   }, [])
-
-  useEffect(() => {
-    if (getSession()) {
-      setChecking(false)
-    } else {
-      router.replace('/login')
-    }
-  }, [router])
 
   const handleGenerate = useCallback(() => {
     setStage('loading')
@@ -1237,15 +1225,6 @@ export default function Page() {
   const handleExportPDF = useCallback(() => {
     window.print()
   }, [])
-
-  if (checking) {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-        <RefreshCw className="size-5 animate-spin text-primary" aria-hidden="true" />
-        Checking your session…
-      </div>
-    )
-  }
 
   return (
     <div className="flex min-h-dvh flex-col">

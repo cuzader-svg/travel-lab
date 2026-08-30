@@ -1,30 +1,34 @@
-export const AUTH_KEY = 'travel-lab.session'
-export const SESSION_USER = 'travel-lab.user'
+import type { NextAuthOptions } from 'next-auth'
+import CredentialsProvider from 'next-auth/providers/credentials'
 
-export type SessionUser = {
-  name: string
-  email: string
-}
+export const authOptions: NextAuthOptions = {
+  session: { strategy: 'jwt' },
+  providers: [
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        name: { label: 'Name', type: 'text' },
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        const name = credentials?.name?.trim()
+        const email = credentials?.email?.trim()
+        const password = credentials?.password ?? ''
 
-export function getSession(): SessionUser | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = window.localStorage.getItem(AUTH_KEY)
-    if (!raw) return null
-    return JSON.parse(raw) as SessionUser
-  } catch {
-    return null
-  }
-}
+        if (!name || !email || !password || password.length < 4) {
+          return null
+        }
 
-export function setSession(user: SessionUser): void {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(AUTH_KEY, JSON.stringify(user))
-  window.localStorage.setItem(SESSION_USER, user.name)
-}
-
-export function clearSession(): void {
-  if (typeof window === 'undefined') return
-  window.localStorage.removeItem(AUTH_KEY)
-  window.localStorage.removeItem(SESSION_USER)
+        return {
+          id: email,
+          name,
+          email,
+        }
+      },
+    }),
+  ],
+  pages: {
+    signIn: '/login',
+  },
 }

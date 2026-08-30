@@ -14,8 +14,8 @@ import {
   Sparkles,
   User,
 } from 'lucide-react'
+import { signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
-import { setSession } from '@/lib/auth'
 
 const FLOATING_ICONS = [
   { Icon: Plane, className: 'left-[8%] top-[18%]', delay: '0s' },
@@ -50,7 +50,7 @@ export default function LoginPage() {
     card.style.setProperty('--ry', '0deg')
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!name.trim() || !email.trim()) {
       setError('Please enter your name and email to continue.')
@@ -62,8 +62,20 @@ export default function LoginPage() {
     }
     setError('')
     setLoading(true)
-    setSession({ name: name.trim(), email: email.trim() })
-    setTimeout(() => router.push('/app'), 800)
+
+    const result = await signIn('credentials', {
+      name: name.trim(),
+      email: email.trim(),
+      password,
+      redirect: false,
+    })
+
+    if (result?.ok) {
+      router.push('/app')
+    } else {
+      setLoading(false)
+      setError('Sign in failed. Please check your details and try again.')
+    }
   }
 
   return (

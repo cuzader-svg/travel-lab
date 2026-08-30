@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import {
   ArrowRight,
   BadgeIndianRupee,
@@ -42,6 +42,8 @@ const FEATURES = [
 export default function LandingPage() {
   const router = useRouter()
   const heroRef = useRef<HTMLDivElement>(null)
+  const [previewBudget, setPreviewBudget] = useState(47200)
+  const maxBudget = 50500
 
   function handleHeroTilt(e: React.MouseEvent<HTMLDivElement>) {
     const el = heroRef.current
@@ -93,11 +95,12 @@ export default function LandingPage() {
           <Button
             variant="outline"
             size="sm"
+            nativeButton={false}
             render={<Link href="/login" />}
           >
             Log in
           </Button>
-          <Button size="sm" render={<Link href="/login" />}>
+          <Button size="sm" nativeButton={false} render={<Link href="/login" />}>
             Get started
           </Button>
         </nav>
@@ -145,27 +148,37 @@ export default function LandingPage() {
               Try the demo
             </Button>
           </div>
-        </div>
 
-        {/* 3D floating preview card */}
-        <div className="pointer-events-none absolute inset-x-0 mx-auto mt-16 hidden max-w-md md:block" aria-hidden="true">
-          <div className="animate-float-desk rounded-2xl border border-border bg-card/90 p-4 shadow-2xl shadow-primary/10 backdrop-blur"
-          >
-            <div className="flex items-center justify-between text-xs">
-              <span className="inline-flex items-center gap-1 font-medium">
-                <BadgeIndianRupee className="size-3 text-primary" /> Budget
-              </span>
-              <span className="font-mono text-muted-foreground">₹47,200 / ₹50,500</span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
-              <div className="h-full w-[93%] rounded-full bg-primary" />
-            </div>
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center gap-2 text-xs">
-                <MapPin className="size-3 text-primary" /> Grand Palace, Bangkok
+          {/* 3D floating preview card */}
+          <div className="mx-auto mt-10 hidden max-w-md md:block">
+            <div className="animate-float-desk rounded-2xl border border-border bg-card/90 p-4 shadow-2xl shadow-primary/10 backdrop-blur text-left">
+              <div className="flex items-center justify-between text-xs">
+                <span className="inline-flex items-center gap-1 font-medium">
+                  <BadgeIndianRupee className="size-3 text-primary" /> Budget
+                </span>
+                <span className="font-mono text-muted-foreground">
+                  ₹{previewBudget.toLocaleString()} / ₹{maxBudget.toLocaleString()}
+                </span>
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <Globe2 className="size-3 text-accent" /> Phi Phi Islands boat hop
+              <div className="mt-3">
+                <input
+                  type="range"
+                  min="10000"
+                  max={maxBudget}
+                  step="500"
+                  value={previewBudget}
+                  onChange={(e) => setPreviewBudget(Number(e.target.value))}
+                  className="w-full cursor-pointer accent-primary h-2 bg-secondary rounded-lg appearance-none"
+                  aria-label="Adjust budget slider"
+                />
+              </div>
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs">
+                  <MapPin className="size-3 text-primary" /> Grand Palace, Bangkok
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <Globe2 className="size-3 text-accent" /> Phi Phi Islands boat hop
+                </div>
               </div>
             </div>
           </div>
