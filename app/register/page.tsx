@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { FormEvent, useRef, useState } from 'react'
+import { FormEvent, useState } from 'react'
 import {
   ArrowRight,
   Compass,
@@ -13,6 +13,7 @@ import {
   MapPin,
   Plane,
   Sparkles,
+  User,
 } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
@@ -24,35 +25,18 @@ const FLOATING_ICONS = [
   { Icon: Compass, className: 'right-[12%] bottom-[16%]', delay: '0.6s' },
 ]
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter()
-  const cardRef = useRef<HTMLDivElement>(null)
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  function handleTilt(e: React.MouseEvent<HTMLDivElement>) {
-    const card = cardRef.current
-    if (!card) return
-    const rect = card.getBoundingClientRect()
-    const px = (e.clientX - rect.left) / rect.width - 0.5
-    const py = (e.clientY - rect.top) / rect.height - 0.5
-    card.style.setProperty('--rx', `${py * -10}deg`)
-    card.style.setProperty('--ry', `${px * 12}deg`)
-  }
-
-  function resetTilt() {
-    const card = cardRef.current
-    if (!card) return
-    card.style.setProperty('--rx', '0deg')
-    card.style.setProperty('--ry', '0deg')
-  }
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!email.trim()) {
-      setError('Please enter your email to continue.')
+    if (!name.trim() || !email.trim()) {
+      setError('Please enter your name and email.')
       return
     }
     if (password.length < 4) {
@@ -62,17 +46,34 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const result = await signIn('credentials', {
-      email: email.trim(),
-      password,
-      redirect: false,
-    })
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
+      })
 
-    if (result?.ok) {
-      router.push('/app')
-    } else {
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError(data?.error ?? 'Registration failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      const result = await signIn('credentials', {
+        email: email.trim(),
+        password,
+        redirect: false,
+      })
+
+      if (result?.ok) {
+        router.push('/app')
+      } else {
+        router.push('/login')
+      }
+    } catch {
+      setError('Registration failed. Please try again.')
       setLoading(false)
-      setError('Sign in failed. No account with those details, or wrong password.')
     }
   }
 
@@ -109,36 +110,51 @@ export default function LoginPage() {
         <span>Travel Lab</span>
       </div>
 
-      {/* 3D login card */}
-      <div
-        ref={cardRef}
-        onMouseMove={handleTilt}
-        onMouseLeave={resetTilt}
-        className="card tilt-card w-full max-w-md"
-        style={{
-          transform:
-            'rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-10px)',
-        }}
-      >
+      {/* Register card */}
+      <div className="w-full max-w-md">
         <div className="rounded-3xl border border-border bg-card/80 p-8 shadow-2xl shadow-primary/10 backdrop-blur-xl">
           <div className="mb-6 flex items-center gap-2 text-accent">
             <Sparkles className="size-4" aria-hidden="true" />
             <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Welcome back
+              Get started
             </span>
           </div>
 
           <h1 className="text-2xl font-semibold tracking-tight">
-            Sign in to your trip
+            Create your account
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Pick up where you left off planning your perfect journey.
+            Start planning your perfect journey today.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-7 space-y-4">
             <div>
               <label
-                htmlFor="login-email"
+                htmlFor="register-name"
+                className="mb-1.5 block text-xs font-medium text-muted-foreground"
+              >
+                Name
+              </label>
+              <div className="relative">
+                <User
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <input
+                  id="register-name"
+                  type="text"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ada Lovelace"
+                  className="w-full rounded-xl border border-border bg-background/60 py-2.5 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary focus:ring-3 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="register-email"
                 className="mb-1.5 block text-xs font-medium text-muted-foreground"
               >
                 Email
@@ -149,7 +165,7 @@ export default function LoginPage() {
                   aria-hidden="true"
                 />
                 <input
-                  id="login-email"
+                  id="register-email"
                   type="email"
                   autoComplete="email"
                   value={email}
@@ -162,7 +178,7 @@ export default function LoginPage() {
 
             <div>
               <label
-                htmlFor="login-password"
+                htmlFor="register-password"
                 className="mb-1.5 block text-xs font-medium text-muted-foreground"
               >
                 Password
@@ -173,12 +189,12 @@ export default function LoginPage() {
                   aria-hidden="true"
                 />
                 <input
-                  id="login-password"
+                  id="register-password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="At least 4 characters"
                   className="w-full rounded-xl border border-border bg-background/60 py-2.5 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary focus:ring-3 focus:ring-primary/20"
                 />
               </div>
@@ -199,23 +215,23 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  Signing you in…
+                  Creating your account…
                 </>
               ) : (
                 <>
-                  Sign in <ArrowRight className="size-4" aria-hidden="true" />
+                  Create account <ArrowRight className="size-4" aria-hidden="true" />
                 </>
               )}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            New to Travel Lab?{' '}
+            Already have an account?{' '}
             <Link
-              href="/register"
+              href="/login"
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
-              Create an account
+              Sign in
             </Link>
           </p>
         </div>
