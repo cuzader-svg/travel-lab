@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   Bed,
   BookMarked,
+  Building2,
   Bus,
   CalendarDays,
   Check,
@@ -145,6 +146,13 @@ function Header({
               </button>
             </>
           )}
+          <Link
+            href="/agency"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary"
+          >
+            <Building2 className="size-3.5" aria-hidden="true" />
+            <span className="hidden sm:inline">Agency</span>
+          </Link>
           <Link
             href="/app/trips"
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary"

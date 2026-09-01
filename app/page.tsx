@@ -92,6 +92,12 @@ export default function LandingPage() {
           >
             How it works
           </Link>
+          <Link
+            href="/agency"
+            className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline"
+          >
+            For Agencies
+          </Link>
           <Button
             variant="outline"
             size="sm"
