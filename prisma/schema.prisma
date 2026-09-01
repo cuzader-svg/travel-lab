@@ -35,14 +35,30 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String      @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?     @unique
   emailVerified DateTime?
   image         String?
   password      String?
   accounts      Account[]
   sessions      Session[]
+  itineraries   Itinerary[]
+}
+
+model Itinerary {
+  id          String   @id @default(cuid())
+  userId      String
+  destination String
+  totalDays   Int
+  currency    String
+  prompt      String   @db.Text
+  data        Json
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model VerificationToken {

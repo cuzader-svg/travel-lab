@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
+import Link from 'next/link'
 import {
-  BadgeIndianRupee,
   Bed,
+  BookMarked,
   Bus,
   CalendarDays,
   Check,
@@ -22,32 +23,11 @@ import {
   Utensils,
   Wallet,
 } from 'lucide-react'
+import type { Activity, Budget, Itinerary } from '@/types/itinerary'
 
 /* ------------------------------------------------------------------ */
-/* Types & Mock Data                                                   */
+/* Constants                                                           */
 /* ------------------------------------------------------------------ */
-
-type Activity = {
-  title: string
-  description: string
-  location: string
-  cost: number
-  travel?: string
-}
-
-type Slot = {
-  id: string
-  label: string
-  emoji: string
-  time: string
-  options: Activity[]
-}
-
-type Day = {
-  title: string
-  subtitle: string
-  slots: Slot[]
-}
 
 const QUICK_CHIPS = [
   'Solo Traveler',
@@ -57,538 +37,33 @@ const QUICK_CHIPS = [
   'Budget Friendly',
 ]
 
-const LOADING_STEPS = [
-  'Parsing your trip preferences...',
-  'Scouting top-rated spots in Thailand...',
-  'Optimizing routes...',
-  'Calculating transport budget...',
-  'Finalizing schedule...',
-]
+const SLOT_STYLES: Record<
+  string,
+  { label: string; emoji: string; time: string }
+> = {
+  morning: { label: 'Morning', emoji: '🌅', time: '9:00 AM - 12:00 PM' },
+  afternoon: { label: 'Afternoon', emoji: '☀️', time: '1:00 PM - 5:00 PM' },
+  evening: { label: 'Evening', emoji: '🌙', time: '6:00 PM - 10:00 PM' },
+}
 
-const BUDGET_TARGET = 50500
-const BUDGET_SPENT = 47200
+const BUDGET_ICONS: Record<string, typeof Bed> = {
+  accommodation: Bed,
+  food: Utensils,
+  activities: Ticket,
+  transport: Bus,
+}
 
-const BUDGET_BREAKDOWN = [
-  { label: 'Accommodation', amount: 22000, icon: Bed },
-  { label: 'Food & Dining', amount: 11500, icon: Utensils },
-  { label: 'Activities & Tickets', amount: 8700, icon: Ticket },
-  { label: 'Transportation', amount: 5000, icon: Bus },
-]
-
-const slot = (
-  id: string,
-  label: string,
-  emoji: string,
-  time: string,
-  options: Activity[],
-): Slot => ({ id, label, emoji, time, options })
-
-const DAYS: Day[] = [
-  {
-    title: 'Arrival & Old Bangkok',
-    subtitle: 'Temples by day, Khao San by night',
-    slots: [
-      slot('d1-m', 'Morning', '\u{1F305}', '9:00 AM - 12:00 PM', [
-        {
-          title: 'Grand Palace & Wat Phra Kaew',
-          description:
-            'Start with Bangkok\u2019s most iconic royal complex and the Emerald Buddha.',
-          location: 'Phra Nakhon, Bangkok',
-          cost: 1225,
-          travel: '20 min taxi from hotel',
-        },
-        {
-          title: 'Wat Pho Reclining Buddha',
-          description:
-            'Marvel at the 46m gold-leaf Buddha and the birthplace of Thai massage.',
-          location: 'Phra Nakhon, Bangkok',
-          cost: 490,
-          travel: '15 min taxi from hotel',
-        },
-        {
-          title: 'Bangkok National Museum',
-          description:
-            'A calm intro to Thai art and history inside a former palace.',
-          location: 'Na Phra That Rd, Bangkok',
-          cost: 500,
-          travel: '18 min taxi from hotel',
-        },
-      ]),
-      slot('d1-a', 'Afternoon', '\u2600\uFE0F', '1:00 PM - 5:00 PM', [
-        {
-          title: 'Chao Phraya Longtail Boat Ride',
-          description:
-            'Cruise the canals of Thonburi past stilt houses and riverside temples.',
-          location: 'Tha Chang Pier',
-          cost: 900,
-          travel: '10 min walk from palace',
-        },
-        {
-          title: 'Wat Arun at Golden Hour',
-          description:
-            'Cross the river to climb the porcelain-studded Temple of Dawn.',
-          location: 'Thonburi, Bangkok',
-          cost: 245,
-          travel: '5 min ferry crossing',
-        },
-        {
-          title: 'Museum Siam Interactive Exhibits',
-          description:
-            'Playful, air-conditioned deep dive into what makes Thailand Thai.',
-          location: 'Sanam Chai Rd, Bangkok',
-          cost: 245,
-          travel: '12 min walk from Wat Pho',
-        },
-      ]),
-      slot('d1-e', 'Evening', '\u{1F319}', '6:00 PM - 10:00 PM', [
-        {
-          title: 'Khao San Road Night Crawl',
-          description:
-            'Street pad thai, live bands, and bucket cocktails on the backpacker mile.',
-          location: 'Khao San Rd, Bangkok',
-          cost: 1100,
-          travel: '15 min tuk-tuk ride',
-        },
-        {
-          title: 'Rambuttri Alley Food Stalls',
-          description:
-            'The mellower, lantern-lit sibling of Khao San with better grilled seafood.',
-          location: 'Rambuttri Alley, Bangkok',
-          cost: 850,
-          travel: '12 min tuk-tuk ride',
-        },
-        {
-          title: 'Riverside Rooftop Sundowners',
-          description:
-            'Cocktails above the Chao Phraya with a view of lit-up Wat Arun.',
-          location: 'Maharaj Pier, Bangkok',
-          cost: 1400,
-          travel: '10 min taxi ride',
-        },
-      ]),
-    ],
-  },
-  {
-    title: 'Markets & Chinatown',
-    subtitle: 'Shop hard, eat harder',
-    slots: [
-      slot('d2-m', 'Morning', '\u{1F305}', '9:00 AM - 12:00 PM', [
-        {
-          title: 'Chatuchak Weekend Market',
-          description:
-            '15,000 stalls of clothes, crafts, and coconut ice cream \u2014 pace yourself.',
-          location: 'Chatuchak, Bangkok',
-          cost: 800,
-          travel: '25 min BTS Skytrain',
-        },
-        {
-          title: 'Or Tor Kor Fresh Market',
-          description:
-            'Thailand\u2019s premium produce market \u2014 mango sticky rice at the source.',
-          location: 'Kamphaeng Phet Rd, Bangkok',
-          cost: 600,
-          travel: '25 min MRT ride',
-        },
-        {
-          title: 'Jim Thompson House Museum',
-          description:
-            'Teak-house museum of the American who revived Thai silk, set in lush gardens.',
-          location: 'Rama I Rd, Bangkok',
-          cost: 490,
-          travel: '20 min BTS Skytrain',
-        },
-      ]),
-      slot('d2-a', 'Afternoon', '\u2600\uFE0F', '1:00 PM - 5:00 PM', [
-        {
-          title: 'Thai Cooking Class',
-          description:
-            'Hands-on class: green curry, tom yum, and a market tour included.',
-          location: 'Silom, Bangkok',
-          cost: 2450,
-          travel: '30 min BTS from Chatuchak',
-        },
-        {
-          title: 'ICONSIAM & River Views',
-          description:
-            'Splashy riverside mall with an indoor floating market on the ground floor.',
-          location: 'Charoen Nakhon, Bangkok',
-          cost: 700,
-          travel: '35 min BTS + shuttle boat',
-        },
-        {
-          title: 'Lumphini Park Paddle Boats',
-          description:
-            'Swan boats, monitor lizards, and shade \u2014 Bangkok\u2019s green lung.',
-          location: 'Lumphini, Bangkok',
-          cost: 300,
-          travel: '25 min MRT ride',
-        },
-      ]),
-      slot('d2-e', 'Evening', '\u{1F319}', '6:00 PM - 10:00 PM', [
-        {
-          title: 'Yaowarat Chinatown Street Feast',
-          description:
-            'Neon signs and Michelin-listed woks \u2014 hit the oyster omelet stall first.',
-          location: 'Yaowarat Rd, Bangkok',
-          cost: 950,
-          travel: '15 min MRT to Wat Mangkon',
-        },
-        {
-          title: 'Talad Neon Night Market',
-          description:
-            'Downtown night market with live music, vintage stalls, and seafood boats.',
-          location: 'Pratunam, Bangkok',
-          cost: 800,
-          travel: '20 min taxi ride',
-        },
-        {
-          title: 'Sky Bar Sundown Session',
-          description:
-            'Golden-hour skyline views from one of the world\u2019s highest rooftop bars.',
-          location: 'Silom, Bangkok',
-          cost: 1800,
-          travel: '18 min BTS Skytrain',
-        },
-      ]),
-    ],
-  },
-  {
-    title: 'Ayutthaya Day Trip',
-    subtitle: 'Ancient capital by rail',
-    slots: [
-      slot('d3-m', 'Morning', '\u{1F305}', '9:00 AM - 12:00 PM', [
-        {
-          title: 'Train to Ayutthaya + Wat Mahathat',
-          description:
-            'Ride the rails north to see the famous Buddha head wrapped in tree roots.',
-          location: 'Ayutthaya Historical Park',
-          cost: 650,
-          travel: '90 min train from Hua Lamphong',
-        },
-        {
-          title: 'Wat Phra Si Sanphet',
-          description:
-            'Three iconic bell-shaped chedis \u2014 the postcard shot of old Siam.',
-          location: 'Ayutthaya Historical Park',
-          cost: 245,
-          travel: '90 min train + 10 min tuk-tuk',
-        },
-        {
-          title: 'Bang Pa-In Summer Palace',
-          description:
-            'Eclectic royal retreat mixing Thai, Chinese, and European styles.',
-          location: 'Bang Pa-In, Ayutthaya',
-          cost: 490,
-          travel: '75 min train ride',
-        },
-      ]),
-      slot('d3-a', 'Afternoon', '\u2600\uFE0F', '1:00 PM - 5:00 PM', [
-        {
-          title: 'Bicycle Ruins Loop',
-          description:
-            'Pedal between crumbling prangs and lotus ponds at your own pace.',
-          location: 'Ayutthaya Old City',
-          cost: 350,
-          travel: '5 min walk to rental shop',
-        },
-        {
-          title: 'Boat Ride Around the Island',
-          description:
-            'Circle the old capital by water, passing three riverside temples.',
-          location: 'Chao Phrom Pier, Ayutthaya',
-          cost: 600,
-          travel: '10 min tuk-tuk to pier',
-        },
-        {
-          title: 'Wat Chaiwatthanaram',
-          description:
-            'Khmer-style riverside ruin \u2014 best preserved and least crowded.',
-          location: 'West bank, Ayutthaya',
-          cost: 245,
-          travel: '15 min tuk-tuk ride',
-        },
-      ]),
-      slot('d3-e', 'Evening', '\u{1F319}', '6:00 PM - 10:00 PM', [
-        {
-          title: 'Boat Noodles + Night Train Back',
-          description:
-            'Slurp famous Ayutthaya boat noodles, then ride back to Bangkok.',
-          location: 'Hua Ro Market, Ayutthaya',
-          cost: 550,
-          travel: '90 min train to Bangkok',
-        },
-        {
-          title: 'Ayutthaya Night Market',
-          description:
-            'Riverside stalls of grilled river prawns and roti sai mai candy floss.',
-          location: 'Bang Ian Rd, Ayutthaya',
-          cost: 700,
-          travel: '8 min tuk-tuk ride',
-        },
-        {
-          title: 'Illuminated Ruins Walk',
-          description:
-            'The historical park glows after dark \u2014 quiet, cool, and photogenic.',
-          location: 'Ayutthaya Historical Park',
-          cost: 245,
-          travel: '10 min walk from market',
-        },
-      ]),
-    ],
-  },
-  {
-    title: 'Fly South to Phuket',
-    subtitle: 'Transit day, beach evening',
-    slots: [
-      slot('d4-m', 'Morning', '\u{1F305}', '9:00 AM - 12:00 PM', [
-        {
-          title: 'Flight BKK \u2192 Phuket',
-          description:
-            'Short 1h20m hop south \u2014 grab a window seat for Phang Nga Bay views.',
-          location: 'Suvarnabhumi Airport',
-          cost: 2100,
-          travel: '45 min Airport Rail Link',
-        },
-        {
-          title: 'Overnight Sleeper Bus (budget swap)',
-          description:
-            'Save the flight fare with a VIP sleeper coach \u2014 arrive rested-ish.',
-          location: 'Southern Bus Terminal',
-          cost: 950,
-          travel: '30 min taxi to terminal',
-        },
-        {
-          title: 'Morning at Suvarnabhumi Spa',
-          description:
-            'Pre-flight Thai massage and lounge time before boarding.',
-          location: 'Suvarnabhumi Airport',
-          cost: 800,
-          travel: '45 min Airport Rail Link',
-        },
-      ]),
-      slot('d4-a', 'Afternoon', '\u2600\uFE0F', '1:00 PM - 5:00 PM', [
-        {
-          title: 'Check-in + Karon Beach Swim',
-          description:
-            'Drop bags at the beachfront guesthouse and dive straight into the Andaman.',
-          location: 'Karon Beach, Phuket',
-          cost: 300,
-          travel: '45 min shuttle from airport',
-        },
-        {
-          title: 'Big Buddha Viewpoint',
-          description:
-            '45m white-marble Buddha with a 360\u00B0 panorama over the island.',
-          location: 'Nakkerd Hill, Phuket',
-          cost: 400,
-          travel: '30 min taxi from hotel',
-        },
-        {
-          title: 'Old Phuket Town Stroll',
-          description:
-            'Sino-Portuguese shophouses, street art, and third-wave coffee.',
-          location: 'Thalang Rd, Phuket Town',
-          cost: 350,
-          travel: '25 min taxi from hotel',
-        },
-      ]),
-      slot('d4-e', 'Evening', '\u{1F319}', '6:00 PM - 10:00 PM', [
-        {
-          title: 'Bangla Road Night Scene',
-          description:
-            'Phuket\u2019s neon nightlife strip \u2014 live bands, bars, and people-watching.',
-          location: 'Patong, Phuket',
-          cost: 1300,
-          travel: '20 min taxi ride',
-        },
-        {
-          title: 'Karon Beach BBQ Dinner',
-          description:
-            'Toes-in-sand grilled snapper and cold Singha at a beach shack.',
-          location: 'Karon Beach, Phuket',
-          cost: 900,
-          travel: '5 min walk from hotel',
-        },
-        {
-          title: 'Phuket Weekend Night Market',
-          description:
-            'Locals\u2019 favorite naka market \u2014 crispy pork, souvenirs, sugarcane juice.',
-          location: 'Naka Market, Phuket',
-          cost: 750,
-          travel: '25 min taxi ride',
-        },
-      ]),
-    ],
-  },
-  {
-    title: 'Phi Phi Islands',
-    subtitle: 'Boats, snorkels, lagoons',
-    slots: [
-      slot('d5-m', 'Morning', '\u{1F305}', '9:00 AM - 12:00 PM', [
-        {
-          title: 'Speedboat to Maya Bay',
-          description:
-            'Early departure beats the crowds to the famous limestone-ringed bay.',
-          location: 'Rassada Pier, Phuket',
-          cost: 2200,
-          travel: '30 min transfer to pier',
-        },
-        {
-          title: 'James Bond Island Tour',
-          description:
-            'Longtail through Phang Nga Bay\u2019s karst needles and sea caves.',
-          location: 'Ao Po Pier, Phuket',
-          cost: 1900,
-          travel: '40 min transfer to pier',
-        },
-        {
-          title: 'Coral Island Snorkel Trip',
-          description:
-            'Closer, cheaper reef trip with banana-boat add-ons for the brave.',
-          location: 'Chalong Pier, Phuket',
-          cost: 1400,
-          travel: '20 min transfer to pier',
-        },
-      ]),
-      slot('d5-a', 'Afternoon', '\u2600\uFE0F', '1:00 PM - 5:00 PM', [
-        {
-          title: 'Pileh Lagoon Snorkeling',
-          description:
-            'Swim in a glassy emerald lagoon walled by 100m limestone cliffs.',
-          location: 'Phi Phi Leh',
-          cost: 500,
-          travel: '15 min boat hop',
-        },
-        {
-          title: 'Monkey Beach & Viewpoint Hike',
-          description:
-            'Cheeky macaques, then a sweaty-but-worth-it climb over Tonsai Bay.',
-          location: 'Phi Phi Don',
-          cost: 350,
-          travel: '20 min boat hop',
-        },
-        {
-          title: 'Bamboo Island Beach Time',
-          description:
-            'Powder-white sandbar with the clearest water of the trip.',
-          location: 'Bamboo Island',
-          cost: 450,
-          travel: '25 min boat hop',
-        },
-      ]),
-      slot('d5-e', 'Evening', '\u{1F319}', '6:00 PM - 10:00 PM', [
-        {
-          title: 'Patong Seafood Night Market',
-          description:
-            'Pick your lobster from the ice, watch it hit the grill.',
-          location: 'Banzaan Market, Patong',
-          cost: 1200,
-          travel: '45 min boat + taxi back',
-        },
-        {
-          title: 'Fire Show on Karon Beach',
-          description:
-            'Free beachfront fire-spinning shows \u2014 budget for a coconut or two.',
-          location: 'Karon Beach, Phuket',
-          cost: 400,
-          travel: '5 min walk from hotel',
-        },
-        {
-          title: 'Sunset Cruise with Dinner',
-          description:
-            'Catamaran buffet as the sun drops behind Promthep Cape.',
-          location: 'Chalong Bay, Phuket',
-          cost: 2100,
-          travel: '25 min transfer to pier',
-        },
-      ]),
-    ],
-  },
-  {
-    title: 'Slow Morning & Departure',
-    subtitle: 'One last mango sticky rice',
-    slots: [
-      slot('d6-m', 'Morning', '\u{1F305}', '9:00 AM - 12:00 PM', [
-        {
-          title: 'Sunrise Walk at Promthep Cape',
-          description:
-            'The island\u2019s southern tip \u2014 lighthouse views and calm before packing.',
-          location: 'Promthep Cape, Phuket',
-          cost: 300,
-          travel: '25 min taxi from hotel',
-        },
-        {
-          title: 'Beachfront Yoga Session',
-          description: 'Drop-in vinyasa class with the Andaman as your backdrop.',
-          location: 'Kata Beach, Phuket',
-          cost: 450,
-          travel: '10 min taxi from hotel',
-        },
-        {
-          title: 'Last Swim at Freedom Beach',
-          description:
-            'Longtail-access-only cove \u2014 the quietest sand on the island.',
-          location: 'Freedom Beach, Phuket',
-          cost: 700,
-          travel: '15 min longtail boat',
-        },
-      ]),
-      slot('d6-a', 'Afternoon', '\u2600\uFE0F', '1:00 PM - 5:00 PM', [
-        {
-          title: 'Souvenirs + Mango Sticky Rice',
-          description:
-            'Old Town shophouse gifts and one final plate of the good stuff.',
-          location: 'Phuket Town',
-          cost: 800,
-          travel: '25 min taxi from hotel',
-        },
-        {
-          title: 'Thai Massage Farewell',
-          description: '90-minute full-body massage before the long journey home.',
-          location: 'Karon, Phuket',
-          cost: 600,
-          travel: '5 min walk from hotel',
-        },
-        {
-          title: 'Cashew Factory & Coffee Stop',
-          description:
-            'Free tastings at the island\u2019s famous cashew workshop.',
-          location: 'Chalong, Phuket',
-          cost: 400,
-          travel: '20 min taxi from hotel',
-        },
-      ]),
-      slot('d6-e', 'Evening', '\u{1F319}', '6:00 PM - 10:00 PM', [
-        {
-          title: 'Flight Home from Phuket',
-          description:
-            'Airport transfer, one last Chang at the gate, and wheels up.',
-          location: 'Phuket International Airport',
-          cost: 2300,
-          travel: '50 min shuttle to airport',
-        },
-        {
-          title: 'Late Dinner at Airport',
-          description:
-            'Khao soi at the food court beats anything airside \u2014 eat before security.',
-          location: 'Phuket International Airport',
-          cost: 500,
-          travel: '50 min shuttle to airport',
-        },
-        {
-          title: 'Overnight Bus to Bangkok (budget swap)',
-          description:
-            'Sleeper coach back to the capital for an onward morning flight.',
-          location: 'Phuket Bus Terminal 2',
-          cost: 1000,
-          travel: '30 min taxi to terminal',
-        },
-      ]),
-    ],
-  },
-]
-
-const formatINR = (n: number) => `\u20B9${n.toLocaleString('en-IN')}`
+function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat('en', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  } catch {
+    return `${currency} ${amount.toLocaleString()}`
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Header                                                              */
@@ -600,12 +75,14 @@ function Header({
   onExportPDF,
   copied,
   hasItinerary,
+  saveState,
 }: {
   onNewTrip: () => void
   onCopyMarkdown: () => void
   onExportPDF: () => void
   copied: boolean
   hasItinerary: boolean
+  saveState: 'idle' | 'saving' | 'saved' | 'error'
 }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur-sm print:hidden">
@@ -629,6 +106,23 @@ function Header({
         <div className="flex items-center gap-2">
           {hasItinerary && (
             <>
+              {saveState === 'saving' && (
+                <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex">
+                  <RefreshCw className="size-3 animate-spin" aria-hidden="true" />
+                  Saving…
+                </span>
+              )}
+              {saveState === 'saved' && (
+                <span className="hidden items-center gap-1.5 text-xs text-primary sm:inline-flex">
+                  <Check className="size-3" aria-hidden="true" />
+                  Saved
+                </span>
+              )}
+              {saveState === 'error' && (
+                <span className="hidden text-xs text-destructive sm:inline">
+                  Save failed
+                </span>
+              )}
               <button
                 type="button"
                 onClick={onExportPDF}
@@ -651,6 +145,13 @@ function Header({
               </button>
             </>
           )}
+          <Link
+            href="/app/trips"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary"
+          >
+            <BookMarked className="size-3.5" aria-hidden="true" />
+            <span className="hidden sm:inline">My Trips</span>
+          </Link>
           <button
             type="button"
             onClick={onNewTrip}
@@ -720,7 +221,7 @@ function Hero({
             }
           }}
           rows={3}
-          placeholder="e.g., 6 days in Thailand, 50,500 INR budget, focus on Thai night life & street food, Beach, moderate pace..."
+          placeholder="e.g., 4 days in Sri Lanka on a budget, beaches and tea country, moderate pace..."
           className="w-full resize-none rounded-xl bg-transparent px-3 py-2.5 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/70"
         />
         <div className="flex flex-col gap-3 px-2 pb-2 sm:flex-row sm:items-center sm:justify-between">
@@ -739,7 +240,8 @@ function Hero({
           <button
             type="button"
             onClick={onGenerate}
-            className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/40"
+            disabled={input.trim().length < 3}
+            className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Generate Itinerary {'\u2728'}
             <ChevronRight
@@ -754,10 +256,10 @@ function Hero({
 }
 
 /* ------------------------------------------------------------------ */
-/* Loading state                                                       */
+/* Loading & error states                                              */
 /* ------------------------------------------------------------------ */
 
-function AILoading({ step }: { step: number }) {
+function AILoading() {
   return (
     <section
       className="mx-auto flex w-full max-w-md flex-col items-center px-4 pt-24 text-center"
@@ -770,32 +272,34 @@ function AILoading({ step }: { step: number }) {
         </div>
       </div>
       <h2 className="text-lg font-semibold">Building your itinerary</h2>
-      <ul className="mt-6 w-full space-y-2.5 text-left">
-        {LOADING_STEPS.map((label, i) => (
-          <li
-            key={label}
-            className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-all duration-500 ${
-              i < step
-                ? 'border-border bg-card text-muted-foreground'
-                : i === step
-                  ? 'border-primary/30 bg-primary/5 font-medium text-foreground'
-                  : 'border-transparent text-muted-foreground/40'
-            }`}
-          >
-            {i < step ? (
-              <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
-            ) : i === step ? (
-              <RefreshCw
-                className="size-4 shrink-0 animate-spin text-primary"
-                aria-hidden="true"
-              />
-            ) : (
-              <span className="size-4 shrink-0" />
-            )}
-            {label}
-          </li>
-        ))}
-      </ul>
+      <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+        <RefreshCw className="size-4 animate-spin text-primary" aria-hidden="true" />
+        Planning days, routes, and budget with AI…
+      </p>
+      <p className="mt-6 text-xs text-muted-foreground">
+        This usually takes 10–30 seconds.
+      </p>
+    </section>
+  )
+}
+
+function AIError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <section className="mx-auto flex w-full max-w-md flex-col items-center px-4 pt-24 text-center">
+      <div className="w-full rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
+        <h2 className="text-lg font-semibold text-destructive">
+          Couldn&apos;t build your itinerary
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-md transition-opacity hover:opacity-90"
+        >
+          <RefreshCw className="size-4" aria-hidden="true" />
+          Try again
+        </button>
+      </div>
     </section>
   )
 }
@@ -804,8 +308,13 @@ function AILoading({ step }: { step: number }) {
 /* Stats bar                                                           */
 /* ------------------------------------------------------------------ */
 
-function StatsBar() {
-  const pct = Math.round((BUDGET_SPENT / BUDGET_TARGET) * 100)
+function StatsBar({ itinerary }: { itinerary: Itinerary }) {
+  const { destination, totalDays, currency, budget, days } = itinerary
+  const placeCount = days.reduce((n, d) => n + d.activities.length, 0)
+  const locations = new Set(
+    days.flatMap((d) => d.activities.map((a) => a.location)),
+  )
+
   return (
     <div className="grid gap-3 md:grid-cols-3">
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -813,37 +322,27 @@ function StatsBar() {
           <CalendarDays className="size-3.5" aria-hidden="true" />
           Destination &amp; Duration
         </div>
-        <p className="mt-2 text-lg font-semibold">Thailand • 6 Days</p>
-        <p className="text-xs text-muted-foreground">
-          Bangkok → Ayutthaya → Phuket → Phi Phi
+        <p className="mt-2 text-lg font-semibold">
+          {destination} • {totalDays} {totalDays === 1 ? 'Day' : 'Days'}
+        </p>
+        <p className="truncate text-xs text-muted-foreground">
+          {locations.size} distinct locations
         </p>
       </div>
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Wallet className="size-3.5" aria-hidden="true" />
-          Estimated vs. Target Budget
+          Estimated Budget
         </div>
         <p className="mt-2 text-lg font-semibold">
-          {formatINR(BUDGET_SPENT)}{' '}
+          {formatMoney(budget.total, currency)}
           <span className="text-sm font-normal text-muted-foreground">
-            spent / {formatINR(BUDGET_TARGET)} budget
+            {' '}
+            / {totalDays} {totalDays === 1 ? 'day' : 'days'}
           </span>
         </p>
-        <div
-          className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary"
-          role="progressbar"
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label="Budget used"
-        >
-          <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {pct}% of budget • {formatINR(BUDGET_TARGET - BUDGET_SPENT)} buffer left
+          ~{formatMoney(Math.round(budget.total / totalDays), currency)} per day
         </p>
       </div>
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -851,9 +350,9 @@ function StatsBar() {
           <MapPin className="size-3.5" aria-hidden="true" />
           Activity Breakdown
         </div>
-        <p className="mt-2 text-lg font-semibold">18 Places</p>
+        <p className="mt-2 text-lg font-semibold">{placeCount} Places</p>
         <p className="text-xs text-muted-foreground">
-          6 Food Stops • 3 Transit Days
+          {days.length} days • {placeCount > 0 ? Math.round((placeCount / days.length) * 10) / 10 : 0} per day avg
         </p>
       </div>
     </div>
@@ -865,9 +364,11 @@ function StatsBar() {
 /* ------------------------------------------------------------------ */
 
 function DayTabs({
+  days,
   activeDay,
   setActiveDay,
 }: {
+  days: Itinerary['days']
   activeDay: number
   setActiveDay: (i: number) => void
 }) {
@@ -877,9 +378,9 @@ function DayTabs({
       aria-label="Trip days"
       className="flex gap-1.5 overflow-x-auto pb-1"
     >
-      {DAYS.map((day, i) => (
+      {days.map((day, i) => (
         <button
-          key={day.title}
+          key={day.day}
           role="tab"
           aria-selected={i === activeDay}
           type="button"
@@ -890,7 +391,7 @@ function DayTabs({
               : 'border border-border bg-card text-secondary-foreground hover:bg-secondary'
           }`}
         >
-          <span className="block text-xs font-semibold">Day {i + 1}</span>
+          <span className="block text-xs font-semibold">Day {day.day}</span>
           <span
             className={`hidden text-[11px] leading-tight lg:block ${
               i === activeDay
@@ -912,58 +413,57 @@ function DayTabs({
 
 function ActivityCard({
   activity,
-  time,
-  swapping,
+  currency,
   onSwap,
+  isSwapping,
 }: {
   activity: Activity
-  time: string
-  swapping: boolean
-  onSwap: () => void
+  currency: string
+  onSwap?: () => void
+  isSwapping?: boolean
 }) {
+  const style = SLOT_STYLES[activity.timeSlot] ?? SLOT_STYLES.morning
   return (
-    <div
-      className={`group relative rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-md ${
-        swapping ? 'scale-[0.98] opacity-0' : 'scale-100 opacity-100'
-      }`}
-    >
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:border-primary/30 hover:shadow-md">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 font-mono text-[11px] font-medium text-secondary-foreground">
           <Clock className="size-3" aria-hidden="true" />
-          {time}
+          {style.time.split(' - ')[0]}
         </span>
         <span className="inline-flex items-center gap-1 rounded-md bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
-          <BadgeIndianRupee className="size-3" aria-hidden="true" />
-          {formatINR(activity.cost)} / person
+          {formatMoney(activity.estimatedCost, currency)} / person
         </span>
       </div>
       <h4 className="mt-2.5 text-sm font-semibold">{activity.title}</h4>
       <p className="mt-1 text-pretty text-xs leading-relaxed text-muted-foreground">
         {activity.description}
       </p>
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <MapPin className="size-3 text-primary" aria-hidden="true" />
-          {activity.location}
-        </span>
-        {activity.travel && (
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            {'\u23F1\uFE0F'} {activity.travel}
+            <MapPin className="size-3 text-primary" aria-hidden="true" />
+            {activity.location}
           </span>
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
+            {activity.category}
+          </span>
+        </div>
+        {onSwap && (
+          <button
+            type="button"
+            onClick={onSwap}
+            disabled={isSwapping}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-[11px] font-medium text-secondary-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Suggest an alternative activity"
+          >
+            <RefreshCw
+              className={`size-3 ${isSwapping ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            {isSwapping ? 'Finding alternative…' : 'Swap'}
+          </button>
         )}
       </div>
-      <button
-        type="button"
-        onClick={onSwap}
-        className="absolute right-3 top-10 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-medium text-secondary-foreground opacity-0 shadow-sm transition-all hover:border-primary/40 hover:text-primary focus-visible:opacity-100 group-hover:opacity-100 print:hidden"
-        aria-label={`Swap ${activity.title} for an alternative`}
-      >
-        <RefreshCw
-          className={`size-3 ${swapping ? 'animate-spin' : ''}`}
-          aria-hidden="true"
-        />
-        {'\u{1F504}'} Swap Activity
-      </button>
     </div>
   )
 }
@@ -973,9 +473,13 @@ function ActivityCard({
 /* ------------------------------------------------------------------ */
 
 function BudgetSidebar({
+  budget,
+  currency,
   open,
   setOpen,
 }: {
+  budget: Budget
+  currency: string
   open: boolean
   setOpen: (v: boolean) => void
 }) {
@@ -1014,23 +518,25 @@ function BudgetSidebar({
         {open && (
           <div className="border-t border-border px-4 pb-4 pt-3">
             <ul className="space-y-3">
-              {BUDGET_BREAKDOWN.map(({ label, amount, icon: Icon }) => {
-                const pct = Math.round((amount / BUDGET_SPENT) * 100)
+              {Object.entries(BUDGET_ICONS).map(([key, Icon]) => {
+                const amount =
+                  budget[key as keyof Omit<Budget, 'total'>] ?? 0
+                const pct = budget.total > 0 ? Math.round((amount / budget.total) * 100) : 0
                 return (
-                  <li key={label}>
+                  <li key={key}>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5 capitalize text-muted-foreground">
                         <Icon className="size-3.5" aria-hidden="true" />
-                        {label}
+                        {key}
                       </span>
                       <span className="font-mono font-medium">
-                        ~ {formatINR(amount)}
+                        ~ {formatMoney(amount, currency)}
                       </span>
                     </div>
                     <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                       <div
                         className="h-full rounded-full bg-primary/70"
-                        style={{ width: `${pct}%` }}
+                        style={{ width: `${Math.min(pct, 100)}%` }}
                       />
                     </div>
                   </li>
@@ -1042,14 +548,9 @@ function BudgetSidebar({
                 Total estimated
               </span>
               <span className="font-mono font-semibold">
-                {formatINR(BUDGET_SPENT)}
+                {formatMoney(budget.total, currency)}
               </span>
             </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-              {formatINR(BUDGET_TARGET - BUDGET_SPENT)} under your{' '}
-              {formatINR(BUDGET_TARGET)} target — nice buffer for street-food
-              impulse buys.
-            </p>
           </div>
         )}
       </div>
@@ -1062,56 +563,110 @@ function BudgetSidebar({
 /* ------------------------------------------------------------------ */
 
 function Workspace({
-  selections,
-  onSwap,
-  swappingSlot,
+  itinerary: initialItinerary,
+  onItineraryChange,
 }: {
-  selections: Record<string, number>
-  onSwap: (slotId: string, optionCount: number) => void
-  swappingSlot: string | null
+  itinerary: Itinerary
+  onItineraryChange: (updated: Itinerary) => void
 }) {
+  const [itinerary, setItinerary] = useState(initialItinerary)
   const [activeDay, setActiveDay] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const day = DAYS[activeDay]
+  const [swappingKey, setSwappingKey] = useState<string | null>(null)
+  const day = itinerary.days[Math.min(activeDay, itinerary.days.length - 1)]
+
+  const handleSwap = useCallback(
+    async (dayIndex: number, activityIndex: number) => {
+      const targetDay = itinerary.days[dayIndex]
+      const activity = targetDay?.activities[activityIndex]
+      if (!activity) return
+
+      const key = `${dayIndex}-${activityIndex}`
+      setSwappingKey(key)
+
+      try {
+        const res = await fetch('/api/generate/swap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            destination: itinerary.destination,
+            currency: itinerary.currency,
+            dayTitle: targetDay.title,
+            timeSlot: activity.timeSlot,
+            currentActivity: activity,
+          }),
+        })
+
+        if (!res.ok) return
+
+        const swapped = await res.json().catch(() => null)
+        if (!swapped) return
+
+        const updated: Itinerary = {
+          ...itinerary,
+          days: itinerary.days.map((d, di) =>
+            di === dayIndex
+              ? {
+                  ...d,
+                  activities: d.activities.map((a, ai) =>
+                    ai === activityIndex ? swapped : a,
+                  ),
+                }
+              : d,
+          ),
+        }
+        setItinerary(updated)
+        onItineraryChange(updated)
+      } finally {
+        setSwappingKey(null)
+      }
+    },
+    [itinerary, onItineraryChange],
+  )
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 pb-20 pt-8 md:px-6">
-      <StatsBar />
+      <StatsBar itinerary={itinerary} />
       <div className="mt-8 flex flex-col gap-6 lg:flex-row">
         <div className="min-w-0 flex-1">
-          <DayTabs activeDay={activeDay} setActiveDay={setActiveDay} />
+          <DayTabs
+            days={itinerary.days}
+            activeDay={activeDay}
+            setActiveDay={setActiveDay}
+          />
           <div className="mt-5">
             <h3 className="text-lg font-semibold">
-              Day {activeDay + 1}: {day.title}
+              Day {day.day}: {day.title}
             </h3>
-            <p className="text-sm text-muted-foreground">{day.subtitle}</p>
+            <p className="text-sm text-muted-foreground">{day.summary}</p>
           </div>
 
           {/* Timeline */}
           <div className="relative mt-6 space-y-8 before:absolute before:bottom-4 before:left-[15px] before:top-4 before:w-px before:bg-border md:before:left-[19px]">
-            {day.slots.map((s) => {
-              const idx = (selections[s.id] ?? 0) % s.options.length
-              const activity = s.options[idx]
+            {day.activities.map((activity, i) => {
+              const style =
+                SLOT_STYLES[activity.timeSlot] ?? SLOT_STYLES.morning
+              const swapKey = `${activeDay}-${i}`
               return (
-                <div key={s.id} className="relative flex gap-4 md:gap-5">
+                <div key={`${activity.timeSlot}-${i}`} className="relative flex gap-4 md:gap-5">
                   <div className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-base shadow-sm md:size-10">
-                    <span aria-hidden="true">{s.emoji}</span>
-                    <span className="sr-only">{s.label}</span>
+                    <span aria-hidden="true">{style.emoji}</span>
+                    <span className="sr-only">{style.label}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-baseline gap-x-2">
                       <h4 className="text-sm font-semibold">
-                        {s.emoji} {s.label}
+                        {style.emoji} {style.label}
                       </h4>
                       <span className="font-mono text-[11px] text-muted-foreground">
-                        {s.time}
+                        {style.time}
                       </span>
                     </div>
                     <ActivityCard
                       activity={activity}
-                      time={s.time.split(' - ')[0]}
-                      swapping={swappingSlot === s.id}
-                      onSwap={() => onSwap(s.id, s.options.length)}
+                      currency={itinerary.currency}
+                      onSwap={() => void handleSwap(activeDay, i)}
+                      isSwapping={swappingKey === swapKey}
                     />
                   </div>
                 </div>
@@ -1120,7 +675,12 @@ function Workspace({
           </div>
         </div>
 
-        <BudgetSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+        <BudgetSidebar
+          budget={itinerary.budget}
+          currency={itinerary.currency}
+          open={sidebarOpen}
+          setOpen={setSidebarOpen}
+        />
       </div>
     </section>
   )
@@ -1130,95 +690,113 @@ function Workspace({
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
-type Stage = 'hero' | 'loading' | 'workspace'
+type Stage = 'hero' | 'loading' | 'workspace' | 'error'
 
 export default function Page() {
   const [stage, setStage] = useState<Stage>('hero')
-  const [input, setInput] = useState(
-    '6 days in Thailand, 50,500 INR budget, focus on Thai night life & street food, Beach, moderate pace',
-  )
-  const [loadingStep, setLoadingStep] = useState(0)
-  const [selections, setSelections] = useState<Record<string, number>>({})
-  const [swappingSlot, setSwappingSlot] = useState<string | null>(null)
+  const [input, setInput] = useState('')
+  const [itinerary, setItinerary] = useState<Itinerary | null>(null)
+  const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
-  useEffect(() => {
-    return () => timersRef.current.forEach(clearTimeout)
+  const saveItinerary = useCallback(async (prompt: string, data: Itinerary) => {
+    setSaveState('saving')
+    try {
+      const res = await fetch('/api/itineraries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, itinerary: data }),
+      })
+      if (res.ok) {
+        setSaveState('saved')
+      } else {
+        setSaveState('error')
+      }
+    } catch {
+      setSaveState('error')
+    }
   }, [])
+
+  const generate = useCallback(async (prompt: string) => {
+    setStage('loading')
+    setError('')
+    setSaveState('idle')
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      })
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        setError(data?.error ?? `Generation failed (HTTP ${res.status}).`)
+        setStage('error')
+        return
+      }
+
+      setItinerary(data as Itinerary)
+      setStage('workspace')
+      void saveItinerary(prompt, data as Itinerary)
+    } catch {
+      setError('Network error — could not reach the generation service.')
+      setStage('error')
+    }
+  }, [saveItinerary])
 
   const handleGenerate = useCallback(() => {
-    setStage('loading')
-    setLoadingStep(0)
-    timersRef.current.forEach(clearTimeout)
-    timersRef.current = LOADING_STEPS.map((_, i) =>
-      setTimeout(() => {
-        if (i === LOADING_STEPS.length - 1) {
-          setLoadingStep(LOADING_STEPS.length)
-          timersRef.current.push(
-            setTimeout(() => setStage('workspace'), 450),
-          )
-        } else {
-          setLoadingStep(i + 1)
-        }
-      }, (i + 1) * 700),
-    )
-  }, [])
+    if (input.trim().length >= 3) {
+      void generate(input.trim())
+    }
+  }, [input, generate])
 
   const handleNewTrip = useCallback(() => {
-    timersRef.current.forEach(clearTimeout)
-    setSelections({})
     setInput('')
+    setItinerary(null)
+    setError('')
+    setSaveState('idle')
     setStage('hero')
   }, [])
 
-  const handleSwap = useCallback((slotId: string, optionCount: number) => {
-    setSwappingSlot(slotId)
-    setTimeout(() => {
-      setSelections((prev) => ({
-        ...prev,
-        [slotId]: ((prev[slotId] ?? 0) + 1) % optionCount,
-      }))
-      setSwappingSlot(null)
-    }, 300)
-  }, [])
-
-  const markdown = useMemo(() => {
+  const markdown = useCallback((): string => {
+    if (!itinerary) return ''
+    const m = formatMoney
     const lines: string[] = [
-      '# Thailand • 6 Days — Travel Lab Itinerary',
+      `# ${itinerary.destination} • ${itinerary.totalDays} Days — Travel Lab Itinerary`,
       '',
-      `**Budget:** ${formatINR(BUDGET_SPENT)} estimated / ${formatINR(BUDGET_TARGET)} target`,
+      `**Budget:** ${m(itinerary.budget.total, itinerary.currency)}`,
       '',
     ]
-    DAYS.forEach((day, i) => {
-      lines.push(`## Day ${i + 1}: ${day.title}`, '')
-      day.slots.forEach((s) => {
-        const a = s.options[(selections[s.id] ?? 0) % s.options.length]
+    itinerary.days.forEach((day) => {
+      lines.push(`## Day ${day.day}: ${day.title}`, day.summary, '')
+      day.activities.forEach((a) => {
         lines.push(
-          `### ${s.label} (${s.time})`,
-          `- **${a.title}** — ${a.description}`,
+          `### ${a.timeSlot.toUpperCase()} — ${a.title}`,
+          a.description,
           `  - Location: ${a.location}`,
-          `  - Cost: ${formatINR(a.cost)} / person`,
-          ...(a.travel ? [`  - Travel: ${a.travel}`] : []),
+          `  - Cost: ${m(a.estimatedCost, itinerary.currency)} / person`,
           '',
         )
       })
     })
     lines.push('## Budget Breakdown', '')
-    BUDGET_BREAKDOWN.forEach((b) =>
-      lines.push(`- ${b.label}: ~ ${formatINR(b.amount)}`),
-    )
-    lines.push('', `**Total:** ${formatINR(BUDGET_SPENT)}`)
+    Object.entries(BUDGET_ICONS).forEach(([key]) => {
+      lines.push(
+        `- ${key}: ~ ${m(itinerary.budget[key as keyof Omit<Budget, 'total'>], itinerary.currency)}`,
+      )
+    })
+    lines.push('', `**Total:** ${m(itinerary.budget.total, itinerary.currency)}`)
     return lines.join('\n')
-  }, [selections])
+  }, [itinerary])
 
   const handleCopyMarkdown = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(markdown)
+      await navigator.clipboard.writeText(markdown())
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      console.log('[v0] Clipboard write failed')
+      console.log('Clipboard write failed')
     }
   }, [markdown])
 
@@ -1234,22 +812,22 @@ export default function Page() {
         onExportPDF={handleExportPDF}
         copied={copied}
         hasItinerary={stage === 'workspace'}
+        saveState={saveState}
       />
       <main className="flex-1">
         {stage === 'hero' && (
           <Hero input={input} setInput={setInput} onGenerate={handleGenerate} />
         )}
-        {stage === 'loading' && <AILoading step={loadingStep} />}
-        {stage === 'workspace' && (
-          <Workspace
-            selections={selections}
-            onSwap={handleSwap}
-            swappingSlot={swappingSlot}
-          />
+        {stage === 'loading' && <AILoading />}
+        {stage === 'error' && (
+          <AIError message={error} onRetry={handleGenerate} />
+        )}
+        {stage === 'workspace' && itinerary && (
+          <Workspace itinerary={itinerary} onItineraryChange={setItinerary} />
         )}
       </main>
       <footer className="border-t border-border py-4 text-center text-xs text-muted-foreground print:hidden">
-        Travel Lab — mock itinerary for demo purposes. All prices in INR.
+        Travel Lab — itineraries generated by AI. Prices are estimates.
       </footer>
     </div>
   )
