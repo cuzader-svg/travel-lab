@@ -35,15 +35,16 @@ model Session {
 }
 
 model User {
-  id            String      @id @default(cuid())
-  name          String?
-  email         String?     @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  accounts      Account[]
-  sessions      Session[]
-  itineraries   Itinerary[]
+  id                String             @id @default(cuid())
+  name              String?
+  email             String?            @unique
+  emailVerified     DateTime?
+  image             String?
+  password          String?
+  accounts          Account[]
+  sessions          Session[]
+  itineraries       Itinerary[]
+  agencyItineraries AgencyItinerary[]
 }
 
 model Itinerary {
@@ -55,6 +56,23 @@ model Itinerary {
   prompt      String   @db.Text
   data        Json
   createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model AgencyItinerary {
+  id              String   @id @default(cuid())
+  userId          String
+  quotationNumber String   @unique
+  clientName      String
+  tripTitle       String
+  destinations    String[]
+  prompt          String   @db.Text
+  data            Json
+  isPublic        Boolean  @default(true)
+  createdAt       DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
