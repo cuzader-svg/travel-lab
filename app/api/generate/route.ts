@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
-        responseJsonSchema: z.toJSONSchema(ItineraryResponseSchema),
+        responseSchema: z.toJSONSchema(ItineraryResponseSchema),
         temperature: 0.7,
       },
     })
