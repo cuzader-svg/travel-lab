@@ -63,7 +63,53 @@ export async function POST(request: Request) {
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
-        responseSchema: z.toJSONSchema(ItineraryResponseSchema),
+        responseSchema: {
+          type: 'object',
+          properties: {
+            destination: { type: 'string' },
+            totalDays: { type: 'integer' },
+            currency: { type: 'string' },
+            days: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  day: { type: 'integer' },
+                  title: { type: 'string' },
+                  summary: { type: 'string' },
+                  activities: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening'] },
+                        title: { type: 'string' },
+                        description: { type: 'string' },
+                        location: { type: 'string' },
+                        estimatedCost: { type: 'number' },
+                        category: { type: 'string' },
+                      },
+                      required: ['timeSlot', 'title', 'description', 'location', 'estimatedCost', 'category'],
+                    },
+                  },
+                },
+                required: ['day', 'title', 'summary', 'activities'],
+              },
+            },
+            budget: {
+              type: 'object',
+              properties: {
+                accommodation: { type: 'number' },
+                food: { type: 'number' },
+                activities: { type: 'number' },
+                transport: { type: 'number' },
+                total: { type: 'number' },
+              },
+              required: ['accommodation', 'food', 'activities', 'transport', 'total'],
+            },
+          },
+          required: ['destination', 'totalDays', 'currency', 'days', 'budget'],
+        },
         temperature: 0.7,
       },
     })

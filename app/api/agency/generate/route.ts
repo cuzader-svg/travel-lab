@@ -6,6 +6,39 @@ import { AgencyItinerarySchema } from '@/types/agency-itinerary'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+/**
+ * Strip JSON Schema fields unsupported by Gemini's responseSchema.
+ * Gemini only supports: type, properties, required, items, enum, nullable, description, format
+ */
+function cleanSchemaForGemini(schema: any): any {
+  if (typeof schema !== 'object' || schema === null) return schema
+  
+  const cleaned: any = {}
+  
+  // Keep only Gemini-supported fields
+  const allowedFields = ['type', 'properties', 'required', 'items', 'enum', 'nullable', 'description', 'format']
+  
+  for (const key of Object.keys(schema)) {
+    if (allowedFields.includes(key)) {
+      const value = schema[key]
+      
+      // Recursively clean nested objects and arrays
+      if (key === 'properties' && typeof value === 'object') {
+        cleaned.properties = {}
+        for (const prop of Object.keys(value)) {
+          cleaned.properties[prop] = cleanSchemaForGemini(value[prop])
+        }
+      } else if (key === 'items') {
+        cleaned.items = cleanSchemaForGemini(value)
+      } else {
+        cleaned[key] = value
+      }
+    }
+  }
+  
+  return cleaned
+}
+
 const RequestSchema = z.object({
   prompt: z.string().trim().min(10).max(3000),
   agencyName: z.string().trim().min(1).default('Travel Lab'),
@@ -99,7 +132,7 @@ export async function POST(request: Request) {
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
-        responseSchema: z.toJSONSchema(AgencyItinerarySchema),
+        responseSchema: cleanSchemaForGemini(z.toJSONSchema(AgencyItinerarySchema)),
         temperature: 0.7,
       },
     })

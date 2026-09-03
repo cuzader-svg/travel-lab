@@ -73,7 +73,18 @@ export async function POST(request: Request) {
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
-        responseSchema: z.toJSONSchema(ActivitySchema),
+        responseSchema: {
+          type: 'object',
+          properties: {
+            timeSlot: { type: 'string', enum: ['morning', 'afternoon', 'evening'] },
+            title: { type: 'string' },
+            description: { type: 'string' },
+            location: { type: 'string' },
+            estimatedCost: { type: 'number' },
+            category: { type: 'string' },
+          },
+          required: ['timeSlot', 'title', 'description', 'location', 'estimatedCost', 'category'],
+        },
         temperature: 0.9,
       },
     })
