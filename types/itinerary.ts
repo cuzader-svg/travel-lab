@@ -34,8 +34,6 @@ export const ItinerarySchema = z.object({
   budget: BudgetSchema,
 })
 
-export type TimeSlot = z.infer<typeof TimeSlotSchema>
 export type Activity = z.infer<typeof ActivitySchema>
-export type DayPlan = z.infer<typeof DayPlanSchema>
 export type Budget = z.infer<typeof BudgetSchema>
 export type Itinerary = z.infer<typeof ItinerarySchema>

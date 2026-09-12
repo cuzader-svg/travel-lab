@@ -215,21 +215,9 @@ export const AgencyItinerarySchema = z.object({
 /* Inferred TypeScript types                                           */
 /* ------------------------------------------------------------------ */
 
-export type MealPlan = z.infer<typeof MealPlanSchema>
-export type JourneyType = z.infer<typeof JourneyTypeSchema>
-export type CabinClass = z.infer<typeof CabinClassSchema>
-export type TransportMode = z.infer<typeof TransportModeSchema>
-export type AgencyMeta = z.infer<typeof AgencyMetaSchema>
-export type TripMeta = z.infer<typeof TripMetaSchema>
-export type Passengers = z.infer<typeof PassengersSchema>
-export type Airport = z.infer<typeof AirportSchema>
 export type Flight = z.infer<typeof FlightSchema>
 export type Hotel = z.infer<typeof HotelSchema>
-export type GroundTransfer = z.infer<typeof GroundTransferSchema>
-export type Place = z.infer<typeof PlaceSchema>
 export type DayPlan = z.infer<typeof DayPlanSchema>
 export type OptionalTour = z.infer<typeof OptionalTourSchema>
-export type TravelInsurance = z.infer<typeof TravelInsuranceSchema>
 export type CancellationSlab = z.infer<typeof CancellationSlabSchema>
-export type Pricing = z.infer<typeof PricingSchema>
 export type AgencyItinerary = z.infer<typeof AgencyItinerarySchema>

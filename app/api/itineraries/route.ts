@@ -10,34 +10,6 @@ const SaveRequestSchema = z.object({
   itinerary: ItinerarySchema,
 })
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // @ts-ignore – id is added by the jwt/session callbacks
-  const userId: string = session.user.id
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const itineraries = await prisma.itinerary.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      destination: true,
-      totalDays: true,
-      currency: true,
-      prompt: true,
-      createdAt: true,
-    },
-  })
-
-  return NextResponse.json(itineraries)
-}
-
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
