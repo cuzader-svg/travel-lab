@@ -3,12 +3,9 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import {
-  BookMarked,
-  Compass,
-  Plus,
-} from 'lucide-react'
+import { BookMarked, Compass, Plus } from 'lucide-react'
 import { TripCard } from '@/components/trip-card'
+import { UserMenu } from '@/components/user-menu'
 
 export const metadata = { title: 'My Trips — Travel Lab' }
 
@@ -66,6 +63,7 @@ export default async function TripsPage() {
             <Plus className="size-3.5" aria-hidden="true" />
             New Trip
           </Link>
+          <UserMenu />
         </div>
       </header>
 

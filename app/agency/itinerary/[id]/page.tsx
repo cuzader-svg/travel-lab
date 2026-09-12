@@ -15,6 +15,7 @@ import {
   Luggage,
   MapPin,
   MessageCircle,
+  Pencil,
   Phone,
   Plane,
   RefreshCw,
@@ -22,6 +23,7 @@ import {
   Sparkles,
   Star,
   Ticket,
+  Trash2,
   Users,
   Wallet,
 } from 'lucide-react'
@@ -230,6 +232,8 @@ export default function AgencyItineraryPage() {
   const [activeDay, setActiveDay] = useState(0)
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     fetch(`/api/agency/itineraries/${id}`)
@@ -295,6 +299,19 @@ export default function AgencyItineraryPage() {
       setTimeout(() => setLinkCopied(false), 2500)
     } catch { /* ignore */ }
   }, [])
+
+  const handleDelete = useCallback(async () => {
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/agency/itineraries/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        window.location.href = '/agency'
+      }
+    } catch { /* ignore */ } finally {
+      setDeleting(false)
+      setConfirmDelete(false)
+    }
+  }, [id])
 
   if (loading) {
     return (
@@ -591,6 +608,21 @@ export default function AgencyItineraryPage() {
             ← Agency Console
           </Link>
           <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/agency/itinerary/${id}/edit`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary"
+            >
+              <Pencil className="size-3.5" />
+              Edit
+            </Link>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Trash2 className="size-3.5" />
+              Delete
+            </button>
             <button
               type="button"
               onClick={handleCopyLink}
@@ -618,6 +650,36 @@ export default function AgencyItineraryPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <h3 className="text-sm font-semibold">Delete Quotation?</h3>
+            <p className="mt-2 text-xs text-muted-foreground">
+              This will permanently delete <span className="font-mono font-semibold text-primary">{agency.quotationNumber}</span> for <strong>{trip.clientName}</strong>. This cannot be undone.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="rounded-lg border border-border bg-card px-4 py-2 text-xs font-medium transition-colors hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-4 py-2 text-xs font-medium text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {deleting ? <RefreshCw className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

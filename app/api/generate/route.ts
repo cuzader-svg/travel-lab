@@ -19,7 +19,8 @@ Rules:
 - Costs are per person, in the currency implied by the user's prompt (default INR), and must be plausible for the destination.
 - "budget" itemizes the WHOLE trip: accommodation, food, activities, transport, and total. "total" MUST equal the sum of the other four.
 - Respect any stated budget, pace, interests, and traveler type from the prompt. If the budget is tight, prefer cheaper options rather than ignoring it.
-- Keep descriptions concise (max 2 sentences), specific, and useful.`
+- Keep descriptions concise (max 2 sentences), specific, and useful.
+- For every activity, return accurate "latitude" and "longitude" for the specific location (e.g., for Eiffel Tower: latitude 48.8584, longitude 2.2945).`
 
 export const maxDuration = 60
 
@@ -88,6 +89,8 @@ export async function POST(request: Request) {
                         location: { type: 'string' },
                         estimatedCost: { type: 'number' },
                         category: { type: 'string' },
+                        latitude: { type: 'number' },
+                        longitude: { type: 'number' },
                       },
                       required: ['timeSlot', 'title', 'description', 'location', 'estimatedCost', 'category'],
                     },

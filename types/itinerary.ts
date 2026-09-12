@@ -9,6 +9,8 @@ export const ActivitySchema = z.object({
   location: z.string().min(1),
   estimatedCost: z.number().nonnegative(),
   category: z.string().min(1),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 })
 
 export const DayPlanSchema = z.object({

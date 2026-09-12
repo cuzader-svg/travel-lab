@@ -149,6 +149,51 @@ export const DayPlanSchema = z.object({
 })
 
 /* ------------------------------------------------------------------ */
+/* Car Rentals                                                         */
+/* ------------------------------------------------------------------ */
+
+export const CarRentalSchema = z.object({
+  city: z.string().min(1),
+  vendorName: z.string().min(1),
+  vehicleType: z.string().min(1),
+  pickupDate: z.string().min(1),
+  dropoffDate: z.string().min(1),
+  pickupLocation: z.string().min(1),
+  dropoffLocation: z.string().min(1),
+  numberOfDays: z.number().int().positive(),
+  driverIncluded: z.boolean(),
+  bookingReference: z.string().optional(),
+  costPerDay: z.number().nonnegative(),
+  totalCost: z.number().nonnegative(),
+})
+
+/* ------------------------------------------------------------------ */
+/* Events                                                              */
+/* ------------------------------------------------------------------ */
+
+export const EventCategorySchema = z.enum([
+  'Show',
+  'Concert',
+  'Sports',
+  'Tour',
+  'Experience',
+  'Other',
+])
+
+export const EventSchema = z.object({
+  name: z.string().min(1),
+  date: z.string().min(1),
+  time: z.string().min(1),
+  venue: z.string().min(1),
+  city: z.string().min(1),
+  category: EventCategorySchema,
+  bookingReference: z.string().optional(),
+  seatDetails: z.string().optional(),
+  costPerPerson: z.number().nonnegative(),
+  included: z.boolean(),
+})
+
+/* ------------------------------------------------------------------ */
 /* Optional Add-ons                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -200,8 +245,10 @@ export const AgencyItinerarySchema = z.object({
   passengers: PassengersSchema,
   flights: z.array(FlightSchema).min(2),
   hotels: z.array(HotelSchema).min(1),
+  carRentals: z.array(CarRentalSchema).default([]),
   groundTransfer: GroundTransferSchema,
   days: z.array(DayPlanSchema).min(1),
+  events: z.array(EventSchema).default([]),
   optionalTours: z.array(OptionalTourSchema),
   travelInsurance: TravelInsuranceSchema,
   pricing: PricingSchema,
@@ -217,7 +264,9 @@ export const AgencyItinerarySchema = z.object({
 
 export type Flight = z.infer<typeof FlightSchema>
 export type Hotel = z.infer<typeof HotelSchema>
+export type CarRental = z.infer<typeof CarRentalSchema>
 export type DayPlan = z.infer<typeof DayPlanSchema>
+export type Event = z.infer<typeof EventSchema>
 export type OptionalTour = z.infer<typeof OptionalTourSchema>
 export type CancellationSlab = z.infer<typeof CancellationSlabSchema>
 export type AgencyItinerary = z.infer<typeof AgencyItinerarySchema>

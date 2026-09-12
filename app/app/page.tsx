@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import {
   Bed,
@@ -14,6 +15,7 @@ import {
   Compass,
   Copy,
   FileDown,
+  Map,
   MapPin,
   PanelRightClose,
   PanelRightOpen,
@@ -25,6 +27,10 @@ import {
   Wallet,
 } from 'lucide-react'
 import type { Activity, Budget, Itinerary } from '@/types/itinerary'
+import { UserMenu } from '@/components/user-menu'
+
+// SSR-safe dynamic import for Leaflet map
+const ItineraryMap = dynamic(() => import('@/components/itinerary-map'), { ssr: false })
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                           */
@@ -77,6 +83,8 @@ function Header({
   copied,
   hasItinerary,
   saveState,
+  showMap,
+  onToggleMap,
 }: {
   onNewTrip: () => void
   onCopyMarkdown: () => void
@@ -84,6 +92,8 @@ function Header({
   copied: boolean
   hasItinerary: boolean
   saveState: 'idle' | 'saving' | 'saved' | 'error'
+  showMap: boolean
+  onToggleMap: () => void
 }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur-sm print:hidden">
@@ -134,6 +144,18 @@ function Header({
               </button>
               <button
                 type="button"
+                onClick={onToggleMap}
+                className={`hidden items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors md:inline-flex ${
+                  showMap
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-border bg-card text-secondary-foreground hover:bg-secondary'
+                }`}
+              >
+                <Map className="size-3.5" aria-hidden="true" />
+                {showMap ? 'Hide Map' : 'Map'}
+              </button>
+              <button
+                type="button"
                 onClick={onCopyMarkdown}
                 className="hidden items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-secondary md:inline-flex"
               >
@@ -168,6 +190,7 @@ function Header({
             <Plus className="size-3.5" aria-hidden="true" />
             New Trip
           </button>
+          <UserMenu />
         </div>
       </div>
     </header>
@@ -573,9 +596,11 @@ function BudgetSidebar({
 function Workspace({
   itinerary: initialItinerary,
   onItineraryChange,
+  showMap,
 }: {
   itinerary: Itinerary
   onItineraryChange: (updated: Itinerary) => void
+  showMap: boolean
 }) {
   const [itinerary, setItinerary] = useState(initialItinerary)
   const [activeDay, setActiveDay] = useState(0)
@@ -635,6 +660,11 @@ function Workspace({
   return (
     <section className="mx-auto w-full max-w-6xl px-4 pb-20 pt-8 md:px-6">
       <StatsBar itinerary={itinerary} />
+      {showMap && (
+        <div className="mt-6">
+          <ItineraryMap days={itinerary.days} activeDay={activeDay} />
+        </div>
+      )}
       <div className="mt-8 flex flex-col gap-6 lg:flex-row">
         <div className="min-w-0 flex-1">
           <DayTabs
@@ -707,6 +737,7 @@ export default function Page() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [showMap, setShowMap] = useState(false)
 
   const saveItinerary = useCallback(async (prompt: string, data: Itinerary) => {
     setSaveState('saving')
@@ -821,6 +852,8 @@ export default function Page() {
         copied={copied}
         hasItinerary={stage === 'workspace'}
         saveState={saveState}
+        showMap={showMap}
+        onToggleMap={() => setShowMap((v) => !v)}
       />
       <main className="flex-1">
         {stage === 'hero' && (
@@ -831,7 +864,7 @@ export default function Page() {
           <AIError message={error} onRetry={handleGenerate} />
         )}
         {stage === 'workspace' && itinerary && (
-          <Workspace itinerary={itinerary} onItineraryChange={setItinerary} />
+          <Workspace itinerary={itinerary} onItineraryChange={setItinerary} showMap={showMap} />
         )}
       </main>
       <footer className="border-t border-border py-4 text-center text-xs text-muted-foreground print:hidden">

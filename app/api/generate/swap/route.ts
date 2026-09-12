@@ -21,7 +21,8 @@ Rules:
 - The alternative MUST be at the same destination.
 - Do NOT suggest the same activity or a trivially similar one — offer a meaningfully different experience.
 - Cost should be plausible and in the same currency. Keep it close to the original cost unless a much better option exists.
-- Keep description concise (max 2 sentences), specific, and useful.`
+- Keep description concise (max 2 sentences), specific, and useful.
+- Return accurate "latitude" and "longitude" for the specific location of the activity.`
 
 export const maxDuration = 30
 
@@ -82,6 +83,8 @@ export async function POST(request: Request) {
             location: { type: 'string' },
             estimatedCost: { type: 'number' },
             category: { type: 'string' },
+            latitude: { type: 'number' },
+            longitude: { type: 'number' },
           },
           required: ['timeSlot', 'title', 'description', 'location', 'estimatedCost', 'category'],
         },

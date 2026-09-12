@@ -11,11 +11,13 @@ import {
   Compass,
   FileText,
   MapPin,
+  Pencil,
   Plus,
   RefreshCw,
   Sparkles,
   User,
 } from 'lucide-react'
+import { UserMenu } from '@/components/user-menu'
 
 const QUICK_CHIPS = [
   '2 Adults 1 Child',
@@ -123,6 +125,7 @@ export default function AgencyPage() {
             <Compass className="size-3.5" aria-hidden="true" />
             Trip Builder
           </Link>
+          <UserMenu />
         </div>
       </header>
 
@@ -214,7 +217,13 @@ export default function AgencyPage() {
               </p>
             )}
 
-            <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex justify-end gap-2">
+              <Link
+                href="/agency/create"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-5 py-2 text-sm font-medium text-secondary-foreground shadow-sm transition-colors hover:bg-secondary"
+              >
+                Fill Manually
+              </Link>
               <button
                 type="button"
                 onClick={handleGenerate}
@@ -279,26 +288,34 @@ export default function AgencyPage() {
                 </div>
               ) : (
                 quotations.map((q) => (
-                  <Link
-                    key={q.id}
-                    href={`/agency/itinerary/${q.id}`}
-                    className="block px-4 py-3 transition-colors hover:bg-secondary"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-mono text-[11px] font-medium text-primary">
-                        {q.quotationNumber}
-                      </span>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">
-                        {formatDate(q.createdAt)}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-xs font-semibold leading-tight">{q.clientName}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{q.tripTitle}</p>
-                    <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <MapPin className="size-3 shrink-0 text-primary" />
-                      <span className="truncate">{q.destinations.join(' → ')}</span>
-                    </div>
-                  </Link>
+                  <div key={q.id} className="flex items-stretch divide-x divide-border border-b border-border last:border-0">
+                    <Link
+                      href={`/agency/itinerary/${q.id}`}
+                      className="flex-1 block px-4 py-3 transition-colors hover:bg-secondary"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-mono text-[11px] font-medium text-primary">
+                          {q.quotationNumber}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          {formatDate(q.createdAt)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs font-semibold leading-tight">{q.clientName}</p>
+                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{q.tripTitle}</p>
+                      <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <MapPin className="size-3 shrink-0 text-primary" />
+                        <span className="truncate">{q.destinations.join(' → ')}</span>
+                      </div>
+                    </Link>
+                    <Link
+                      href={`/agency/itinerary/${q.id}/edit`}
+                      className="flex items-center justify-center px-3 text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
+                      title="Edit"
+                    >
+                      <Pencil className="size-3.5" />
+                    </Link>
+                  </div>
                 ))
               )}
             </div>
