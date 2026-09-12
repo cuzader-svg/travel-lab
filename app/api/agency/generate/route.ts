@@ -7,6 +7,16 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 /**
+ * Schema for Gemini — omits manual-fill-only fields (carRentals, events)
+ * so their .default([]) doesn't produce anyOf/default structures that
+ * cleanSchemaForGemini strips into empty objects, breaking the Gemini call.
+ */
+const AgencyItineraryAISchema = AgencyItinerarySchema.omit({
+  carRentals: true,
+  events: true,
+})
+
+/**
  * Strip JSON Schema fields unsupported by Gemini's responseSchema.
  * Gemini only supports: type, properties, required, items, enum, nullable, description, format
  */
@@ -132,7 +142,7 @@ export async function POST(request: Request) {
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
-        responseSchema: cleanSchemaForGemini(z.toJSONSchema(AgencyItinerarySchema)),
+        responseSchema: cleanSchemaForGemini(z.toJSONSchema(AgencyItineraryAISchema)),
         temperature: 0.7,
       },
     })
@@ -162,7 +172,7 @@ export async function POST(request: Request) {
       j.agency = agency
     }
 
-    const parsedItinerary = AgencyItinerarySchema.safeParse(json)
+    const parsedItinerary = AgencyItineraryAISchema.safeParse(json)
     if (!parsedItinerary.success) {
       console.error('Agency itinerary validation failed:', JSON.stringify(z.treeifyError(parsedItinerary.error)))
       return NextResponse.json(
@@ -171,7 +181,12 @@ export async function POST(request: Request) {
       )
     }
 
-    const data = parsedItinerary.data
+    // Merge AI output with empty manual-fill defaults (carRentals/events)
+    const data = AgencyItinerarySchema.parse({
+      ...parsedItinerary.data,
+      carRentals: [],
+      events: [],
+    })
 
     const saved = await prisma.agencyItinerary.create({
       data: {
