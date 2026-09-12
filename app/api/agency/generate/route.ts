@@ -19,20 +19,33 @@ const AgencyItineraryAISchema = AgencyItinerarySchema.omit({
 /**
  * Strip JSON Schema fields unsupported by Gemini's responseSchema.
  * Gemini only supports: type, properties, required, items, enum, nullable, description, format
+ *
+ * Special handling:
+ * - anyOf  → Zod v4 emits anyOf for .optional() fields; convert to nullable inner type
+ * - $ref / $defs → avoided upstream by { reused: 'inline' } on z.toJSONSchema()
  */
 function cleanSchemaForGemini(schema: any): any {
   if (typeof schema !== 'object' || schema === null) return schema
-  
+
+  // anyOf is produced by z.optional() in Zod v4.
+  // Gemini doesn't support anyOf — extract the real type and mark nullable.
+  if ('anyOf' in schema && Array.isArray(schema.anyOf)) {
+    const inner = schema.anyOf.find(
+      (s: any) => s && s.type !== 'null' && !('not' in s),
+    )
+    if (inner) {
+      return cleanSchemaForGemini({ ...inner, nullable: true })
+    }
+    return { type: 'string', nullable: true } // safe fallback
+  }
+
   const cleaned: any = {}
-  
-  // Keep only Gemini-supported fields
   const allowedFields = ['type', 'properties', 'required', 'items', 'enum', 'nullable', 'description', 'format']
-  
+
   for (const key of Object.keys(schema)) {
     if (allowedFields.includes(key)) {
       const value = schema[key]
-      
-      // Recursively clean nested objects and arrays
+
       if (key === 'properties' && typeof value === 'object') {
         cleaned.properties = {}
         for (const prop of Object.keys(value)) {
@@ -45,7 +58,7 @@ function cleanSchemaForGemini(schema: any): any {
       }
     }
   }
-  
+
   return cleaned
 }
 
@@ -142,7 +155,7 @@ export async function POST(request: Request) {
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
-        responseSchema: cleanSchemaForGemini(z.toJSONSchema(AgencyItineraryAISchema)),
+        responseSchema: cleanSchemaForGemini(z.toJSONSchema(AgencyItineraryAISchema, { reused: 'inline' })),
         temperature: 0.7,
       },
     })
